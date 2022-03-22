@@ -52,7 +52,7 @@ const download = async (repo, tag) => {
 
   // /user/apple/.template/repo
   const dest = `${downloadDirectory}/${repo}`
-  // await downloadGitRepo(api, dest)
+  await downloadGitRepo(api, dest)
   return dest
 }
 
