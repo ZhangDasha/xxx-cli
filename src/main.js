@@ -1,9 +1,7 @@
 // 1、解析用户参数
 const path = require('path')
 const program = require('commander')
-const {version} = require('./constants')
-const chalk = require('chalk')
-const log = console.log
+const {version, loadingWrapper, chalk, log, exec} = require('./constants')
 
 
 /**********************  start  ************************/
@@ -19,6 +17,31 @@ program
   })
 /**********************  end  ************************/
 
+
+/**********************  start  ************************/
+// 例：init project
+program
+  .command('init')
+  .alias('i')
+  .description('project install and build')
+  .action(async () => {
+    require(path.resolve(__dirname, 'init'))(...process.argv.slice(3))
+  })
+
+
+// 例：open the project server
+program
+  .command('server')
+  .alias('s')
+  .description('project run server')
+  .action(async () => {
+    // server
+    require(path.resolve(__dirname, 'server'))(...process.argv.slice(3))
+
+
+  })
+
+/**********************  end  ************************/
 
 
 /**********************  start  ************************/
@@ -75,6 +98,10 @@ program.on('--help', () => {
 /**********************  end  ************************/
 
 
+process.on('unhandledRejection', error => {
+  log(chalk.red(error));
+  process.exit(0)
+});
 
 
 /**********************  start  ************************/

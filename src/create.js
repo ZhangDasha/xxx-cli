@@ -8,13 +8,28 @@ const fs = require('fs')
 const path = require('path')
 const {promisify} = require('util')
 const axios = require('axios')
-const ora = require('ora') // loading
 const inquirer = require('inquirer')
 const metalsmith = require('metalsmith') // 遍历文件夹
 let {render} = require('consolidate').ejs  // 模板引擎
 let ncp = require('ncp') // 拷贝
 let downloadGitRepo = require('download-git-repo')
-const {downloadDirectory} = require('./constants')
+const {downloadDirectory, loadingWrapper, chalk, log} = require('./constants')
+
+
+/*
+* 注：
+*   git api 针对 ip 请求有次数限制；
+*   默认：60/h {同一 ip 地址，一小时 60 次}
+*   添加 auto token：5000/h
+* */
+// axios 拦截器添加 git auto token
+axios.interceptors.request.use(function (config) {
+  config.headers.Authorization = `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`;
+  return config;
+}, function (error) {
+  // 对请求错误做些什么
+  return Promise.reject(error);
+});
 
 // 可以把异步的 api 转化为 promise
 downloadGitRepo = promisify(downloadGitRepo)
@@ -56,14 +71,8 @@ const download = async (repo, tag) => {
   return dest
 }
 
-const loadingWrapper = async (msg = 'loading...', callback, ...params) => {
-  const spinner = ora(msg).start();
-  const res = await callback(...params)
-  spinner.succeed()
-  return res
-}
 
-module.exports = async (fileName) => {
+module.exports = async (projectName) => {
   // 1、获取项目模板
   const repos = ['vue-template', 'vue-simple-template', 'quickapp-template']
 
@@ -95,7 +104,7 @@ module.exports = async (fileName) => {
   // 如果不存在 ask
   if (!fs.existsSync(path.join(res_dir, 'ask.json'))) {
     // 把 template 下文件，拷贝到执行命令的目录下
-    await loadingWrapper('', ncp, res_dir, path.resolve(fileName))
+    await loadingWrapper('', ncp, res_dir, path.resolve(projectName))
   } else {
     // 如果存在 ask 文件就是一个复杂模板
     // 1、让用户填信息
@@ -103,12 +112,12 @@ module.exports = async (fileName) => {
       metalsmith(__dirname) // 如果传入路径，默认遍历当前路径下 src 文件
         .source(res_dir)
         .ignore(['.*'])
-        .destination(path.resolve(fileName)) // 目的地
+        .destination(path.resolve(projectName)) // 目的地
         .use(async (files, metal, done) => {
           const args = require(path.join(res_dir, 'ask.json'))
           let result = await inquirer.prompt(args)
           // 获取用户输入
-          Object.assign(metal.metadata(), result, {version:tag})
+          Object.assign(metal.metadata(), result, {version: tag})
           // console.log(result)
 
           // 是否创建证书
@@ -147,4 +156,6 @@ module.exports = async (fileName) => {
         })
     })
   }
+
+  log(chalk.green.bold(`创建成功，cd 到目录 ${path.resolve(projectName)} 查看`))
 }
